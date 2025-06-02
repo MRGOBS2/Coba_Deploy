@@ -1,14 +1,19 @@
 <?php
 
 use App\Models\User;
+use App\Models\Siswa;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use Livewire\WithFileUploads;
 
 new #[Layout('components.layouts.auth')] class extends Component {
+    use WithFileUploads;
+
     public string $name = '';
     public string $email = '';
     public string $password = '';
@@ -19,19 +24,53 @@ new #[Layout('components.layouts.auth')] class extends Component {
      */
     public function register(): void
     {
-        $validated = $this->validate([
+        $this->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
+            'email' => [
+                'required', 
+                'string', 
+                'lowercase', 
+                'email', 
+                'max:255', 
+                'unique:' . User::class,
+                'exists:siswas,email' // Email harus terdaftar di tabel siswa
+            ],
             'password' => ['required', 'string', 'confirmed', Rules\Password::defaults()],
+        ], [
+            'email.exists' => 'Email tidak terdaftar sebagai siswa. Silakan hubungi admin.',
         ]);
 
-        $validated['password'] = Hash::make($validated['password']);
+        $validated = [
+            'name' => $this->name,
+            'email' => $this->email,
+            'password' => $this->password,
+        ];
 
-        event(new Registered(($user = User::create($validated))));
+        // Cari data siswa berdasarkan email
+        $siswa = Siswa::where('email', $validated['email'])->first();
+        
+        // Cek apakah email sudah digunakan untuk registrasi sebelumnya
+        if (User::where('email', $validated['email'])->exists()) {
+            $this->addError('email', 'Email ini sudah terdaftar dengan akun lain.');
+            return;
+        }
+
+        // Simpan user ke tabel `users`
+        $user = User::create([
+            'name' => $this->name,
+            'email' => $this->email,
+            'password' => Hash::make($this->password),
+        ]);
+
+        // Berikan role "siswa" menggunakan Shield
+        $user->assignRole('Siswa');
+
+        event(new Registered($user));
 
         Auth::login($user);
 
-        $this->redirectIntended(route('dashboard', absolute: false), navigate: true);
+        $this->redirectRoute('dashboard');
+        //$this->redirectIntended(route('dashboard', absolute: false), navigate: true);
     }
 }; ?>
 
@@ -41,7 +80,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
     <!-- Session Status -->
     <x-auth-session-status class="text-center" :status="session('status')" />
 
-    <form wire:submit="register" class="flex flex-col gap-6">
+    <form wire:submit="register" class="flex flex-col gap-6" enctype="multipart/form-data">
         <!-- Name -->
         <flux:input
             wire:model="name"
@@ -62,7 +101,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
             autocomplete="email"
             placeholder="email@example.com"
         />
-
+                  
         <!-- Password -->
         <flux:input
             wire:model="password"

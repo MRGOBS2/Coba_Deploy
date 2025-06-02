@@ -103,7 +103,20 @@ class PklController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        //berdasar id
+        $pkl = Pkl::find($id);
+        $pkl->siswa_id = $request->siswa_id ?? $pkl->siswa_id;
+        $pkl->industri_id = $request->industri_id ?? $pkl->industri_id;
+        $pkl->guru_id = $request->guru_id ?? $pkl->guru_id;
+        $pkl->mulai = $request->mulai ?? $pkl->mulai;
+        $pkl->selesai = $request->selesai ?? $pkl->selesai;
+        $pkl->save();
+        //return respone
+        return response()->json([
+            'success' => true,
+            'message' => 'Data Pkl [' . $pkl->id . '] Berhasil Diupdate!',
+            'pkl' => $pkl
+        ]);
     }
 
     /**

@@ -81,42 +81,20 @@ class IndustriController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //menacri industri berdasar id
         $industri = Industri::find($id);
+        $industri->nama = $request->nama ?? $industri->nama;
+        $industri->website = $request->website ?? $industri->website;
+        $industri->bidang_usaha = $request->bidang_usaha ?? $industri->bidang_usaha;
+        $industri->alamat = $request->alamat ?? $industri->alamat;
+        $industri->kontak = $request->kontak ?? $industri->kontak;
+        $industri->email = $request->email ?? $industri->email;
 
-        //jika industri tidak ditemukan
-        if (!$industri) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Data industri Tidak Ditemukan!',
-            ], 404);
-        }
+        $industri->save();
 
-        //membuat validasi industri
-        $validator = Validator::make($request->all(), [
-            'nama' => 'required',
-            'website' => 'required|url',
-            'bidang_usaha' => 'required',
-            'alamat' => 'required',
-            'kontak' => 'required|unique:industris,kontak',
-            'email' => 'required|email|unique:industris,email',
-        ]);
-
-        //jika validasi gagal
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validasi gagal! Silakan cek kembali input Anda.',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        //jika validasi berhasil
-        $industri->update($request->all());     
         return response()->json([
             'success' => true,
             'message' => 'Data industri Berhasil Diupdate!',
-            'industri' => $industri 
+            'industri' => $industri
         ]);
     }
 

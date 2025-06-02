@@ -13,6 +13,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\DB;
 
 class SiswaResource extends Resource
 {
@@ -39,12 +40,16 @@ class SiswaResource extends Resource
                 Forms\Components\TextInput::make('nis')
                     ->label('NIS')
                     ->required()
+                    ->unique(Siswa::class, 'nis', ignoreRecord: true)
+                    ->validationMessages([
+                        'unique' => 'NIS ini sudah digunakan! Silakan masukkan NIS dengan benar.',
+                    ])
                     ->maxLength(5),
                 Forms\Components\Select::make('gender')
                     ->label('Jenis Kelamin')
                     ->options([
-                        'Laki-laki' => 'Laki-laki', 
-                        'Perempuan' => 'Perempuan'
+                        'L' => 'Laki-laki', 
+                        'P' => 'Perempuan'
                     ])
                     ->required(),
                 Forms\Components\TextInput::make('alamat')
@@ -52,19 +57,26 @@ class SiswaResource extends Resource
                     ->maxLength(255),
                 Forms\Components\TextInput::make('kontak')
                     ->required()
+                    ->unique(Siswa::class,'kontak', ignoreRecord: true)
+                    ->validationMessages([
+                        'unique' => 'Nomor ini sudah digunakan! Silakan masukkan nomor lain.',
+                    ])
                     ->maxLength(15),
-                Forms\Components\TextInput::make('email')
-                    ->email()
+                Forms\Components\Textinput::make('email')
+                    //->email()
                     ->required()
-                    ->maxLength(255),
+                    // ->searchable()
+                    // ->relationship('user', 'email')
+                    // ->unique(Siswa::class, 'email', ignoreRecord: true)
+                    ->validationMessages([
+                        'unique' => 'Email ini sudah digunakan! Silakan masukkan Email dengan benar.',
+                    ]),
+                    //->maxLength(255),
 
                  Forms\Components\FileUpload::make('foto')
                     ->label('Foto siswa')
                     ->openable()
-                    ->image()
-                    ->disk('public')
                     ->required()
-                    ->directory('foto')       
                     ->previewable(),
 
                 //menambah roles
@@ -82,44 +94,67 @@ class SiswaResource extends Resource
     {
         return $table
             ->columns([
-                    Tables\Columns\ImageColumn::make('foto')
-                        ->label('Foto')
-                        ->circular()
-                        ->size(40),
-                
-                    Tables\Columns\TextColumn::make('nama')
-                        ->searchable()
-                        ->weight('medium'),
-                
-                    Tables\Columns\TextColumn::make('nis')
-                        ->label('NIS')
-                        ->searchable(),
-                
-                    Tables\Columns\TextColumn::make('alamat')->searchable(),
-                    Tables\Columns\TextColumn::make('kontak')->searchable(),
-                    Tables\Columns\TextColumn::make('email')->searchable(),
-                
-                    Tables\Columns\IconColumn::make('status_pkl')->boolean(),
-                ])
-                
+                Tables\Columns\TextColumn::make('nama')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('nis')
+                    ->label('NIS')  
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('gender')
+                    ->formatStateUsing(fn ($state) => DB::select("SELECT getGenderCode(?) AS gender", [$state])[0]->gender),
+                Tables\Columns\TextColumn::make('alamat')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('kontak')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('email')
+                    ->searchable(),
+
+                //image
+
+                Tables\Columns\BadgeColumn::make('status_pkl')
+                ->colors([
+                    '0' => 'danger',  // Merah = Belum PKL
+                    '1' => 'success', // Hijau = Sedang PKL
+                ]),
+                Tables\Columns\IconColumn::make('status_pkl')
+                    ->boolean()
+                    ,
                 // Tables\Columns\TextColumn::make('roles')
                 //     ->label('Role')
                 //     ->formatStateUsing(function ($state, $record) {
                 //         return $record->getRoleNames()->join(', ');
                 //     }),
 
+            ])
             ->filters([
                 //
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+                Tables\Actions\DeleteAction::make()
+                ->requiresConfirmation()
+                ->action(function ($record) {
+                    // Cek apakah siswa memiliki data PKL
+                    $hasPkl = \App\Models\Pkl::where('siswa_id', $record->id)->exists();
+                    
+                    if ($hasPkl) {
+                        \Filament\Notifications\Notification::make()
+                            ->title('Tidak dapat menghapus data!')
+                            ->body('Siswa ini memiliki data PKL yang terkait. Hapus data PKL terlebih dahulu.')
+                            ->danger()
+                            ->send();
+                        
+                        return; // Stop execution tanpa menghapus
+                    }
+                    
+                    // Jika tidak ada PKL, hapus siswa
+                    $record->delete();
+                    
+                    \Filament\Notifications\Notification::make()
+                        ->title('Data berhasil dihapus!')
+                        ->success()
+                        ->send();
+                }),
             ]);
     }
 

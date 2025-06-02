@@ -5,11 +5,14 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\PklResource\Pages;
 use App\Filament\Resources\PklResource\RelationManagers;
 use App\Models\Pkl;
+use App\Models\Siswa;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
+use Illuminate\Support\Carbon;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
@@ -31,12 +34,19 @@ class PklResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Select::make('siswa_id')
-                    ->label('Nama Siswa')
-                    ->relationship('siswa', 'nama')
-                    ->required(),
+                ->label('Nama Siswa')
+                ->relationship('siswa', 'nama')
+                ->required()
+                ->unique(ignoreRecord: true)
+                ->searchable() // Memungkinkan pencarian dalam dropdown
+                //->allowCustomValues() // Memungkinkan input manual selain data relasi
+                ->validationMessages([
+                    'unique' => 'Siswa ini sudah terdaftar input data PKL!',
+                ]),            
                 Forms\Components\Select::make('industri_id')
                     ->label('Industri')
                     ->relationship('industri', 'nama')
+                    ->searchable()
                     ->required(),
                 Forms\Components\Select::make('guru_id')
                     ->label('Guru Pembimbing')
@@ -45,12 +55,14 @@ class PklResource extends Resource
                 Forms\Components\DatePicker::make('mulai')
                     ->required(),
                 Forms\Components\DatePicker::make('selesai')
+                    ->after('mulai')
                     ->required(),
             ]);
     }
 
     public static function table(Table $table): Table
     {
+        
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('siswa.nama')
@@ -66,6 +78,9 @@ class PklResource extends Resource
                     ->date(),
                 Tables\Columns\TextColumn::make('selesai')
                     ->date(),
+                Tables\Columns\TextColumn::make('selisih_hari')
+                ->label('Durasi (Hari)')
+                ->getStateUsing(fn (Pkl $record) => Carbon::parse($record->mulai)->diffInDays(Carbon::parse($record->selesai))),
             ])
             ->filters([
                 //
@@ -81,6 +96,16 @@ class PklResource extends Resource
                 ]),
             ]);
     }
+
+    public static function beforeDelete(Siswa $record): void
+    {
+    $isSiswaInPkl = DB::table('pkls')->where('siswa_id', $record->id)->exists();
+
+    if ($isSiswaInPkl) {
+        abort(403, 'Siswa ini sedang use Illuminate\Support\Facades\DB;PKL dan tidak bisa dihapus.');
+    }
+    }
+
 
     public static function getPages(): array
     {

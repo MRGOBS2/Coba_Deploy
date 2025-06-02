@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use App\Models\Siswa;
+use App\Models\Guru;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,10 +21,11 @@ class cek_user
         if (Auth::check()) {
             $UserEmail = Auth::user()->email;
 
+            //cek ketersediaan email user di tanel siswa
             $siswa = Siswa::where('email', $UserEmail)->exists();
 
             if (!$siswa) {
-                Auth::logout();
+                Auth::logout();//logout jika user tidak cocok
                 return redirect('/login')->with('error', 'Email tidak cocok dengan data di tabel siswa');
             }
         }

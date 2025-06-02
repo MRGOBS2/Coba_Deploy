@@ -10,17 +10,17 @@ class pkl extends Model
 
     public function siswa ()
     {
-        return $this->belongsTo(siswa::class);
+        return $this->belongsTo(Siswa::class);
     }
 
     public function industri ()
     {
-        return $this->belongsTo(industri::class);
+        return $this->belongsTo(Industri::class);
     }
 
     public function guru ()
     {
-        return $this->belongsTo(guru::class);
+        return $this->belongsTo(Guru::class);
     }
 
 
