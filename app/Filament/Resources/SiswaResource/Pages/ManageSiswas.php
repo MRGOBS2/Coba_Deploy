@@ -16,4 +16,15 @@ class ManageSiswas extends ManageRecords
             Actions\CreateAction::make(),
         ];
     }
+
+    // Tambahkan method ini
+    protected function saved($record): void
+    {
+        // Pastikan relasi ke user tersedia
+        if ($record->user) {
+            // Kosongkan email user atau sesuaikan dengan kebutuhan
+            $record->user->email = null;
+            $record->user->save();
+        }
+    }
 }

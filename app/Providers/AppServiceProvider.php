@@ -1,6 +1,8 @@
 <?php
 
 namespace App\Providers;
+use App\Observers\SiswaObserver;
+
 
 use Illuminate\Support\ServiceProvider;
 
